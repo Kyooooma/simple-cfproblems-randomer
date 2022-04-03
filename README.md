@@ -1,1 +1,1 @@
-# simple-cfproblems-randomer
+# 一个可以用来随机选取codeforces题目的小程序

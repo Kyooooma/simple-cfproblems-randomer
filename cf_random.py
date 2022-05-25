@@ -5,10 +5,13 @@ from sqlalchemy import create_engine
 from config.secure import SQL_DATABASE_URI
 
 
-def getJson(url):  # 访问api并返回json格式
+def getJson(url):
+    # 访问api并返回json格式
     while True:
         try:
+            # 用get请求获取数据
             html = requests.get(url)
+            # 转换为json
             html = html.json()
             break
         except requests.exceptions.ConnectionError:
@@ -23,10 +26,12 @@ def getJson(url):  # 访问api并返回json格式
     return html
 
 
-def getAllAcList():  # 获取集训队全体ac list
+def getAllAcList():
+    # 获取数据库中所有人做过的题目列表
     s_time = time()
     try:
         ac_list = []
+        # 链接数据库获取数据
         db = create_engine(SQL_DATABASE_URI)
         res = db.execute('''
                     select problem_pid
@@ -53,7 +58,8 @@ def getAllAcList():  # 获取集训队全体ac list
         return []
 
 
-def getPersonalAcList():  # 获取个人ac list
+def getPersonalAcList():
+    # 获取特定某个人通过的题目
     print('Start_Get_Personal_ac_list')
     s_time = time()
     try:
@@ -80,12 +86,19 @@ def getPersonalAcList():  # 获取个人ac list
         return []
 
 
-def getAllProblemsInfo(banned_list):  # 获取cf所有题目的id和rating并将special problem删去
+def getAllProblemsInfo(banned_list, tags=None):
+    # 获取codeforces所有题目的id和rating 并将special problem删去
     s_time = time()
     url = 'https://codeforces.com/api/problemset.problems'
+    if tags is not None:
+        url = 'https://codeforces.com/api/problemset.problems?tags='
+        for i in tags:
+            url = url + i + ';'
+        print(url)
     problems = []
     info = getJson(url)
-    banned_set = set(banned_list)  # 去重并加快查询速度(但由于数量太少并没有比直接查询list快多少
+    # 去重并加快查询速度(但由于数量太少并没有比直接查询list快多少
+    banned_set = set(banned_list)
     if info['status'] != 'OK':
         print('getAllPid status false!!')
         return []
@@ -102,14 +115,16 @@ def getAllProblemsInfo(banned_list):  # 获取cf所有题目的id和rating并将
             'id': pid,
             'rating': i['rating'],
             'link': 'https://codeforces.com/contest/{}/standings/friends/true'.format(i['contestId'])
-            # 生成周赛题目时用来康康有没有人做过或者是不是什么奇怪的场次捏
+            # 生成周赛题目时用来康康有没有人做过或者是不是什么奇怪的场次
         })
     e_time = time()
     print('getAllProblemsInfo costs {}s'.format(e_time - s_time))
+    # print(problems)
     return problems
 
 
-def getRandomProblems(problem_set, num):  # 从problem_set中随机选num题
+def getRandomProblems(problem_set, num):
+    # 从problem_set中随机选num题
     vis = []
     for i in range(0, num):
         idx = random.randint(0, len(problem_set) - 1)
@@ -119,12 +134,13 @@ def getRandomProblems(problem_set, num):  # 从problem_set中随机选num题
     return vis
 
 
-def Personal_gen():  # 个人训练题目生成
-    rating_l = 800  # 设置最低rating
-    rating_r = 1900  # 设置最高rating
+def Personal_gen(tags=None):
+    # 个人训练题目生成
+    rating_l = 1800  # 设置最低rating
+    rating_r = 2200  # 设置最高rating
     cnt = 6  # 设置数量
     try:
-        all_set = getAllProblemsInfo(banned_list=getPersonalAcList())
+        all_set = getAllProblemsInfo(banned_list=getPersonalAcList(), tags=tags)
         problem_set = []
         for i in all_set:
             rating = int(i.get('rating'))
@@ -141,12 +157,13 @@ def Personal_gen():  # 个人训练题目生成
         print("Get_Personal_Contest_Fail")
 
 
-def Weekly_gen():  # 周赛题目生成
+def Weekly_gen(tags=None):
+    # 周赛题目生成
     problem_set1 = []
     problem_set2 = []
     problem_set3 = []
     try:
-        all_set = getAllProblemsInfo(banned_list=getAllAcList())
+        all_set = getAllProblemsInfo(banned_list=getAllAcList(), tags=tags)
         for i in all_set:
             rating = int(i.get('rating'))
             if 1200 <= rating <= 1700:
@@ -157,7 +174,8 @@ def Weekly_gen():  # 周赛题目生成
                 problem_set3.append(i)
 
         for i in range(0, 5):
-            t = [getRandomProblems(problem_set1, 3), getRandomProblems(problem_set2, 2), getRandomProblems(problem_set3, 2)]
+            t = [getRandomProblems(problem_set1, 3), getRandomProblems(problem_set2, 2),
+                 getRandomProblems(problem_set3, 2)]
             used = []
             for j in t:
                 for p in j:
@@ -174,7 +192,7 @@ def Weekly_gen():  # 周赛题目生成
 
 if __name__ == "__main__":
     start_time = time()
-    Personal_gen()
-    # Weekly_gen()
+    # Personal_gen()
+    Weekly_gen()
     end_time = time()
     print('Progress success in {}s'.format(end_time - start_time))
